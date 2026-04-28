@@ -342,6 +342,22 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   color: var(--text);
 }
 
+/* ── GitHub link ── */
+.github-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  margin-left: auto;
+  transition: color 0.15s;
+  padding: 3px 6px;
+  border-radius: 6px;
+}
+.github-link:hover { color: var(--text); background: var(--surface2); }
+
 /* ── Error message ── */
 .form-error {
   color: var(--danger);

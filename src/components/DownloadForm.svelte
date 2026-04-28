@@ -1,5 +1,7 @@
 <script lang="ts">
   import { open } from "@tauri-apps/plugin-dialog";
+  import { downloadDir } from "@tauri-apps/api/path";
+  import { onMount } from "svelte";
   import {
     startDownload,
     type OutputFormat,
@@ -18,6 +20,10 @@
   let error = $state("");
 
   const formats: OutputFormat[] = ["mp4", "mkv", "ts"];
+
+  onMount(async () => {
+    try { outputDir = await downloadDir(); } catch {}
+  });
 
   async function pickDirectory() {
     const selected = await open({ directory: true, multiple: false });
@@ -89,7 +95,7 @@
     />
   </div>
 
-  <div class="input-row">
+  <div class="input-row" style="align-items: flex-end;">
     <div class="field" style="flex:1">
       <label for="start-time">
         Start Time <span class="optional">(optional)</span>
