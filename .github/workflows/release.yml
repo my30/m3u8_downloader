@@ -85,10 +85,11 @@ jobs:
       - name: Download ffmpeg sidecar (Windows x64)
         shell: pwsh
         run: |
-          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-essentials.zip"
-          $zip = "src-tauri/binaries/ffmpeg-win64.zip"
           New-Item -ItemType Directory -Force -Path "src-tauri/binaries" | Out-Null
-          curl.exe -L -o $zip $url
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest"
+          $asset = $release.assets | Where-Object { $_.name -like "*win64-lgpl-essentials.zip" } | Select-Object -First 1
+          $zip = "src-tauri/binaries/ffmpeg-win64.zip"
+          curl.exe -L --retry 3 -o $zip $asset.browser_download_url
           Expand-Archive -Path $zip -DestinationPath "src-tauri/binaries/tmp" -Force
           $ffmpegExe = Get-ChildItem -Path "src-tauri/binaries/tmp" -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
           Copy-Item $ffmpegExe.FullName "src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe"
