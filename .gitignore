@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+target/
+
+# ffmpeg sidecars (downloaded at build time, not committed)
+src-tauri/binaries/
+
+# Tauri generated
+src-tauri/gen/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/settings.json
+.idea/
