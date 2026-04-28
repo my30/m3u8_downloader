@@ -44,8 +44,8 @@ download_macos_x86() {
 
 download_windows_x86() {
   echo "Downloading ffmpeg for Windows x64 (x86_64-pc-windows-msvc)..."
-  # BtbN builds: latest master lgpl-essentials build
-  local url="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-essentials.zip"
+  # BtbN builds: latest master lgpl static build (no -shared, no -essentials)
+  local url="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl.zip"
   local zip="$BINARIES_DIR/ffmpeg-win64.zip"
   curl -L "$url" -o "$zip"
   # The zip contains a directory like ffmpeg-master-latest-win64-lgpl-essentials/bin/ffmpeg.exe
