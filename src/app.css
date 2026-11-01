@@ -115,6 +115,7 @@ header .subtitle {
 
 input[type="text"],
 input[type="url"],
+textarea,
 select {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -128,11 +129,15 @@ select {
   width: 100%;
 }
 
-input:focus, select:focus {
+textarea { resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+
+.hint { font-size: 11px; color: #6b6f85; margin-top: -2px; }
+
+input:focus, textarea:focus, select:focus {
   border-color: var(--accent);
 }
 
-input::placeholder { color: #44485e; }
+input::placeholder, textarea::placeholder { color: #44485e; }
 
 .input-row {
   display: flex;

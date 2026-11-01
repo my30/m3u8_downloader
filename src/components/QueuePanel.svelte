@@ -13,6 +13,7 @@
   }
 
   async function cancel(id: string) {
+    // Status update arrives via the download_status event.
     await cancelDownload(id);
   }
 
@@ -40,12 +41,11 @@
     return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
   }
 
-  // Rough progress percentage — ffmpeg doesn't emit total duration for HLS,
-  // so we show an indeterminate pulsing bar while running
-  function progressWidth(job: DownloadJob): string {
-    if (job.status === "Done") return "100%";
-    if (job.status === "Running") return "60%"; // indeterminate visual
-    return "0%";
+  /** Percentage if the total duration is known, otherwise null (indeterminate). */
+  function percent(job: DownloadJob): number | null {
+    if (job.status === "Done") return 100;
+    if (!job.total_secs || job.progress_secs === null) return null;
+    return Math.min(100, (job.progress_secs / job.total_secs) * 100);
   }
 
   const hasFinished = $derived(
@@ -77,6 +77,7 @@
         </div>
 
         <div class="job-url" title={job.url}>{job.url}</div>
+        <div class="job-url" title={job.output_path}>→ {job.output_path}</div>
 
         {#if job.start_time || job.end_time}
           <div class="job-meta">
@@ -87,17 +88,24 @@
         {/if}
 
         {#if job.status === "Running" || job.status === "Done"}
+          {@const pct = percent(job)}
           <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
             <div class="progress-wrap" style="flex:1">
               <div
-                class="progress-fill {job.status === 'Running' ? 'indeterminate' : ''}"
-                style="width: {progressWidth(job)}"
+                class="progress-fill {pct === null ? 'indeterminate' : ''}"
+                style="width: {pct ?? 0}%"
               ></div>
             </div>
             {#if job.progress_secs !== null}
-              <span class="job-time">{formatSecs(job.progress_secs)}</span>
+              <span class="job-time">
+                {formatSecs(job.progress_secs)}{#if job.total_secs} / {formatSecs(job.total_secs)}{/if}
+              </span>
             {/if}
           </div>
+        {/if}
+
+        {#if job.status === "Pending"}
+          <div class="job-meta">Waiting for a free slot…</div>
         {/if}
 
         {#if job.status === "Error" && job.error}
@@ -106,7 +114,7 @@
 
         {#if job.log_lines.length > 0}
           <button class="log-toggle" onclick={() => toggleLog(job.id)}>
-            {expandedLogs.has(job.id) ? "Hide log" : "Show log"} ({job.log_lines.length} lines)
+            {expandedLogs.has(job.id) ? "Hide log" : "Show log"} (last {job.log_lines.length} lines)
           </button>
           {#if expandedLogs.has(job.id)}
             <div class="log-box">{job.log_lines.join("\n")}</div>
