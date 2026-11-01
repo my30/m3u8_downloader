@@ -2,8 +2,11 @@
 name = "m3u8-downloader"
 version = "0.1.0"
 description = "m3u8 Downloader"
-authors = []
+authors = ["my30"]
+license = "MIT"
+repository = "https://github.com/my30/m3u8_downloader"
 edition = "2021"
+rust-version = "1.82"
 
 [lib]
 name = "m3u8_downloader_lib"
@@ -14,12 +17,11 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
-tokio = { version = "1", features = ["full"] }
 regex = "1"
 
 [features]

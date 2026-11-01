@@ -3,6 +3,7 @@
   import { downloadDir } from "@tauri-apps/api/path";
   import { onMount } from "svelte";
   import {
+    parseTimestamp,
     startDownload,
     type OutputFormat,
     type StartDownloadArgs,
@@ -16,6 +17,10 @@
   let outputDir = $state("");
   let filename = $state("");
   let format = $state<OutputFormat>("mp4");
+  let userAgent = $state("");
+  let referer = $state("");
+  let headersText = $state("");
+  let showAdvanced = $state(false);
   let submitting = $state(false);
   let error = $state("");
 
@@ -32,12 +37,6 @@
     }
   }
 
-  function validateTime(val: string): boolean {
-    if (!val) return true; // optional
-    // Accept HH:MM:SS, MM:SS, or plain seconds
-    return /^(\d+:\d{2}:\d{2}|\d+:\d{2}|\d+(\.\d+)?)$/.test(val.trim());
-  }
-
   async function handleSubmit() {
     error = "";
     const trimmedUrl = url.trim();
@@ -45,14 +44,19 @@
     const trimmedFilename = filename.trim();
 
     if (!trimmedUrl) { error = "URL is required."; return; }
+    if (!/^https?:\/\//i.test(trimmedUrl)) { error = "URL must start with http:// or https://"; return; }
     if (!trimmedDir) { error = "Output directory is required."; return; }
     if (!trimmedFilename) { error = "Filename is required."; return; }
-    if (startTime && !validateTime(startTime)) {
-      error = "Invalid start time. Use HH:MM:SS or seconds."; return;
-    }
-    if (endTime && !validateTime(endTime)) {
-      error = "Invalid end time. Use HH:MM:SS or seconds."; return;
-    }
+
+    const start = startTime.trim() ? parseTimestamp(startTime) : null;
+    const end = endTime.trim() ? parseTimestamp(endTime) : null;
+    if (startTime.trim() && start === null) { error = "Invalid start time. Use HH:MM:SS or seconds."; return; }
+    if (endTime.trim() && end === null) { error = "Invalid end time. Use HH:MM:SS or seconds."; return; }
+    if (start !== null && end !== null && end <= start) { error = "End time must be after start time."; return; }
+
+    const headers = headersText.split("\n").map((h) => h.trim()).filter(Boolean);
+    const badHeader = headers.find((h) => !/^[^\s:]+:/.test(h));
+    if (badHeader) { error = `Header must look like "Name: value": ${badHeader}`; return; }
 
     const args: StartDownloadArgs = {
       url: trimmedUrl,
@@ -61,12 +65,15 @@
       format,
       start_time: startTime.trim() || null,
       end_time: endTime.trim() || null,
+      user_agent: userAgent.trim() || null,
+      referer: referer.trim() || null,
+      headers,
     };
 
     try {
       submitting = true;
       await startDownload(args);
-      // Reset form on success
+      // Reset per-video fields on success (keep dir, format and headers)
       url = "";
       startTime = "";
       endTime = "";
@@ -95,7 +102,7 @@
     />
   </div>
 
-  <div class="input-row" style="align-items: flex-end;">
+  <div class="input-row" style="align-items: flex-start;">
     <div class="field" style="flex:1">
       <label for="start-time">
         Start Time <span class="optional">(optional)</span>
@@ -119,6 +126,7 @@
       />
     </div>
   </div>
+  <div class="hint">End time is a position in the source, not a duration. With stream copy, the start snaps to the nearest keyframe (can be off by a few seconds).</div>
 
   <div class="field">
     <label for="output-dir">Output Directory</label>
@@ -159,6 +167,26 @@
       </div>
     </div>
   </div>
+
+  <button class="log-toggle" onclick={() => (showAdvanced = !showAdvanced)} aria-expanded={showAdvanced}>
+    {showAdvanced ? "▾" : "▸"} HTTP headers <span class="optional">(for sites that need Referer / cookies)</span>
+  </button>
+  {#if showAdvanced}
+    <div class="input-row">
+      <div class="field" style="flex:1">
+        <label for="referer">Referer</label>
+        <input id="referer" type="text" bind:value={referer} placeholder="https://example.com/watch/123" spellcheck="false" />
+      </div>
+      <div class="field" style="flex:1">
+        <label for="user-agent">User-Agent</label>
+        <input id="user-agent" type="text" bind:value={userAgent} placeholder="Mozilla/5.0 …" spellcheck="false" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="headers">Extra headers <span class="optional">(one "Name: value" per line)</span></label>
+      <textarea id="headers" rows="3" bind:value={headersText} placeholder="Cookie: session=abc" spellcheck="false"></textarea>
+    </div>
+  {/if}
 
   {#if error}
     <div class="form-error">{error}</div>

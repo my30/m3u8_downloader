@@ -1,14 +1,15 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod download;
 
 use std::sync::Arc;
+
 use download::DownloadManager;
+use tauri::{Manager, RunEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(Arc::new(DownloadManager::default()))
         .invoke_handler(tauri::generate_handler![
             download::start_download,
@@ -16,6 +17,13 @@ pub fn run() {
             download::get_queue,
             download::clear_completed,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|handle, event| {
+        // Don't leave orphaned ffmpeg processes downloading after the window closes.
+        if let RunEvent::Exit = event {
+            handle.state::<Arc<DownloadManager>>().kill_all();
+        }
+    });
 }

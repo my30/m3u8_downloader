@@ -4,47 +4,56 @@
   import QueuePanel from "./components/QueuePanel.svelte";
   import {
     getQueue,
+    onLog,
     onProgress,
     onStatusChange,
+    MAX_LOG_LINES,
     type DownloadJob,
   } from "./lib/tauri";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import { onMount } from "svelte";
+  import type { UnlistenFn } from "@tauri-apps/api/event";
+
+  const REPO_URL = "https://github.com/my30/m3u8_downloader";
 
   let jobs = $state<DownloadJob[]>([]);
 
-  onMount(async () => {
-    // Load existing queue (e.g. after hot reload)
+  async function refresh() {
     try {
       jobs = await getQueue();
     } catch {}
+  }
 
-    // Listen for progress updates from running ffmpeg processes
-    const unlistenProgress = await onProgress((e) => {
-      jobs = jobs.map((j) =>
-        j.id === e.id
-          ? { ...j, progress_secs: e.progress_secs, log_lines: [...j.log_lines, e.log_line] }
-          : j
-      );
-    });
+  function update(id: string, fn: (j: DownloadJob) => DownloadJob) {
+    const i = jobs.findIndex((j) => j.id === id);
+    if (i === -1) {
+      // Event for a job we don't know yet (e.g. emitted before start_download returned)
+      refresh();
+      return;
+    }
+    jobs[i] = fn(jobs[i]);
+  }
 
-    // Listen for status changes (Done / Error / Canceled)
-    const unlistenStatus = await onStatusChange((e) => {
-      jobs = jobs.map((j) =>
-        j.id === e.id ? { ...j, status: e.status, error: e.error } : j
-      );
-    });
-
+  // onMount must be synchronous for its cleanup function to be used.
+  onMount(() => {
+    const unlisteners: Promise<UnlistenFn>[] = [
+      onProgress((e) =>
+        update(e.id, (j) => ({ ...j, progress_secs: e.progress_secs, total_secs: e.total_secs ?? j.total_secs }))
+      ),
+      onLog((e) =>
+        update(e.id, (j) => ({ ...j, log_lines: [...j.log_lines, e.line].slice(-MAX_LOG_LINES) }))
+      ),
+      onStatusChange((e) => update(e.id, (j) => ({ ...j, status: e.status, error: e.error }))),
+    ];
+    refresh();
     return () => {
-      unlistenProgress();
-      unlistenStatus();
+      unlisteners.forEach((p) => p.then((un) => un()));
     };
   });
 
-  // When a new job is started from the form, refresh the full queue
-  async function handleJobAdded() {
-    try {
-      jobs = await getQueue();
-    } catch {}
+  function openRepo(e: MouseEvent) {
+    e.preventDefault();
+    openUrl(REPO_URL).catch(() => {});
   }
 </script>
 
@@ -57,9 +66,8 @@
     </svg>
     <h1>M3U8 Downloader</h1>
     <a
-      href="https://github.com/my30/m3u8_downloader"
-      target="_blank"
-      rel="noopener noreferrer"
+      href={REPO_URL}
+      onclick={openRepo}
       class="github-link"
       title="View on GitHub"
     >
@@ -71,7 +79,7 @@
   </header>
 
   <div class="content">
-    <DownloadForm onqueued={handleJobAdded} />
+    <DownloadForm onqueued={refresh} />
     <QueuePanel bind:jobs />
   </div>
 </div>
